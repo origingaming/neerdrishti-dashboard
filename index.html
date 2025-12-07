@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Neerdrishti Radar Dashboard</title>
+  <style>
+    body { font-family: Arial; text-align: center; background: #0a1a2a; color: white; }
+    #radar { margin-top: 40px; }
+  </style>
+
+  <!-- Paho MQTT Websocket Client -->
+  <script src="https://unpkg.com/paho-mqtt/mqttws31.min.js"></script>
+</head>
+<body>
+
+<h2>Neerdrishti Radar Dashboard (Live MQTT)</h2>
+<p>Status: <span id="status">Connecting...</span></p>
+<p>Latest distances: <span id="data">-- , -- , --</span></p>
+
+<canvas id="radar" width="400" height="400"></canvas>
+
+<script>
+  // ------------------ MQTT SETUP ------------------
+
+  const broker = "test.mosquitto.org";
+  const port = 8081; // WebSocket port
+  const topic = "neerdrishti/sonar/data";
+
+  let clientID = "WebClient_" + Math.floor(Math.random()*9999);
+  let client = new Paho.MQTT.Client(broker, port, clientID);
+
+  client.onMessageArrived = onMessage;
+  client.onConnectionLost = () => {
+    document.getElementById("status").textContent = "Disconnected";
+  };
+
+  client.connect({
+    onSuccess: () => {
+      document.getElementById("status").textContent = "Connected!";
+      client.subscribe(topic);
+    },
+    useSSL: true
+  });
+
+  // ------------------ DATA HANDLER ------------------
+
+  let d1=0,d2=0,d3=0;
+
+  function onMessage(message) {
+    try {
+      let json = JSON.parse(message.payloadString);
+      d1 = json.d1;
+      d2 = json.d2;
+      d3 = json.d3;
+      document.getElementById("data").textContent = `${d1} , ${d2} , ${d3}`;
+    } catch(e) {}
+  }
+
+  // ------------------ RADAR DRAWING ------------------
+
+  const canvas = document.getElementById("radar");
+  const ctx = canvas.getContext("2d");
+
+  function draw() {
+    ctx.clearRect(0,0,400,400);
+
+    // Radar background
+    ctx.strokeStyle = "lime";
+    ctx.beginPath();
+    ctx.arc(200,200,180,0,2*Math.PI); ctx.stroke();
+    ctx.arc(200,200,120,0,2*Math.PI); ctx.stroke();
+    ctx.arc(200,200,60,0,2*Math.PI); ctx.stroke();
+
+    // Draw beams for 3 sensors (120° apart)
+    drawDot(200,200,d1,0);
+    drawDot(200,200,d2,120);
+    drawDot(200,200,d3,240);
+
+    requestAnimationFrame(draw);
+  }
+
+  function drawDot(cx,cy,dist,angle){
+    let rad = angle*(Math.PI/180);
+    let x = cx + dist*Math.cos(rad);
+    let y = cy + dist*Math.sin(rad);
+    ctx.fillStyle = "red";
+    ctx.beginPath();
+    ctx.arc(x,y,6,0,2*Math.PI);
+    ctx.fill();
+  }
+
+  draw();
+</script>
+</body>
+</html>
