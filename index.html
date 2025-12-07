@@ -20,6 +20,7 @@
 
 <script>
   // ------------------ MQTT SETUP ------------------
+  let client = new Paho.MQTT.Client("wss://test.mosquitto.org:8081/mqtt");
 
   const broker = "test.mosquitto.org";
   const port = 8081; // WebSocket port
