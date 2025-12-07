@@ -1,95 +1,71 @@
 <!DOCTYPE html>
 <html>
 <head>
-  <title>Neerdrishti Radar Dashboard</title>
+  <title>NeNeerdrishti Live Data</title>
   <style>
-    body { font-family: Arial; text-align: center; background: #0a1a2a; color: white; }
-    #radar { margin-top: 40px; }
+    body {
+      background: #111;
+      color: #0f0;
+      font-family: monospace;
+      text-align: center;
+      padding-top: 50px;
+    }
+    .box {
+      border: 1px solid #0f0;
+      padding: 20px;
+      display: inline-block;
+      margin-top: 20px;
+    }
   </style>
 
-  <!-- Paho MQTT Websocket Client -->
+  <!-- MQTT WebSocket client -->
   <script src="https://unpkg.com/paho-mqtt/mqttws31.min.js"></script>
 </head>
 <body>
 
-<h2>Neerdrishti Radar Dashboard (Live MQTT)</h2>
-<p>Status: <span id="status">Connecting...</span></p>
-<p>Latest distances: <span id="data">-- , -- , --</span></p>
+<h2>Neerdrishti Realtime Sonar Monitor</h2>
+<div>Status: <span id="status">Connecting...</span></div>
 
-<canvas id="radar" width="400" height="400"></canvas>
+<div class="box">
+  d1: <span id="d1">--</span><br>
+  d2: <span id="d2">--</span><br>
+  d3: <span id="d3">--</span>
+</div>
 
 <script>
-  // ------------------ MQTT SETUP ------------------
-  let client = new Paho.MQTT.Client("wss://test.mosquitto.org:8081/mqtt");
-
+  // MQTT settings
   const broker = "test.mosquitto.org";
-  const port = 8081; // WebSocket port
+  const port = 8081; // WebSocket SSL
   const topic = "neerdrishti/sonar/data";
 
-  let clientID = "WebClient_" + Math.floor(Math.random()*9999);
+  let clientID = "WebClient_" + Math.floor(Math.random()*10000);
   let client = new Paho.MQTT.Client(broker, port, clientID);
 
-  client.onMessageArrived = onMessage;
   client.onConnectionLost = () => {
-    document.getElementById("status").textContent = "Disconnected";
+    document.getElementById("status").innerText = "Disconnected";
+  };
+
+  client.onMessageArrived = (message) => {
+    try {
+      let data = JSON.parse(message.payloadString);
+      document.getElementById("d1").innerText = data.d1;
+      document.getElementById("d2").innerText = data.d2;
+      document.getElementById("d3").innerText = data.d3;
+    } catch(e){}
   };
 
   client.connect({
+    useSSL: true,
     onSuccess: () => {
-      document.getElementById("status").textContent = "Connected!";
+      document.getElementById("status").innerText = "Connected";
       client.subscribe(topic);
     },
-    useSSL: true
+    onFailure: () => {
+      document.getElementById("status").innerText = "Connect Failed";
+    }
   });
-
-  // ------------------ DATA HANDLER ------------------
-
-  let d1=0,d2=0,d3=0;
-
-  function onMessage(message) {
-    try {
-      let json = JSON.parse(message.payloadString);
-      d1 = json.d1;
-      d2 = json.d2;
-      d3 = json.d3;
-      document.getElementById("data").textContent = `${d1} , ${d2} , ${d3}`;
-    } catch(e) {}
-  }
-
-  // ------------------ RADAR DRAWING ------------------
-
-  const canvas = document.getElementById("radar");
-  const ctx = canvas.getContext("2d");
-
-  function draw() {
-    ctx.clearRect(0,0,400,400);
-
-    // Radar background
-    ctx.strokeStyle = "lime";
-    ctx.beginPath();
-    ctx.arc(200,200,180,0,2*Math.PI); ctx.stroke();
-    ctx.arc(200,200,120,0,2*Math.PI); ctx.stroke();
-    ctx.arc(200,200,60,0,2*Math.PI); ctx.stroke();
-
-    // Draw beams for 3 sensors (120° apart)
-    drawDot(200,200,d1,0);
-    drawDot(200,200,d2,120);
-    drawDot(200,200,d3,240);
-
-    requestAnimationFrame(draw);
-  }
-
-  function drawDot(cx,cy,dist,angle){
-    let rad = angle*(Math.PI/180);
-    let x = cx + dist*Math.cos(rad);
-    let y = cy + dist*Math.sin(rad);
-    ctx.fillStyle = "red";
-    ctx.beginPath();
-    ctx.arc(x,y,6,0,2*Math.PI);
-    ctx.fill();
-  }
-
-  draw();
 </script>
+
 </body>
 </html>
+
